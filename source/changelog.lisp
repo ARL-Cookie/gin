@@ -576,7 +576,9 @@ auto-mode-rules.lisp)."))
    (:li (:nxref :slot 'backtrack-to-hubs-p :class-name 'nyxt/history-mode:history-mode)
         " allows to revisit the \"hub\" URLs you often visit, instead of adding them to history anew.")
    (:li "nyxt:// pages can be linked from the outside Internet due to scheme security
-settings changes."))
+settings changes.")
+   (:li "Prompt buffer attribute columns adjust to their content, allowing for
+a better overview of lengthy attributes."))
 
   (:h3 "Bindings")
   (:ul
