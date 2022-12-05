@@ -293,6 +293,67 @@ Uses the average length of attribute values to derive the width."
         finally (return (mapcar (lambda (w) (+ 10 (round (* (- 100 mandatory-space) (/ w total)))))
                                 widths))))
 
+(defun render-attributes (source prompt-buffer)
+  (spinneret:with-html-string
+    (when (prompter:suggestions source)
+      (:table :class "source-content"
+              (:colgroup
+               (dolist (width (attribute-widths source))
+                 (:col :style (format nil "width: ~d%" width))))
+              (:tr :style (if (or (eq (prompter:hide-attribute-header-p source) :always)
+                                  (and (eq (prompter:hide-attribute-header-p source) :single)
+                                       (sera:single (prompter:active-attributes-keys source))))
+                              "display:none;"
+                              "display:revert;")
+                   (loop for attribute-key in (prompter:active-attributes-keys source)
+                         collect (:th (spinneret::escape-string attribute-key))))
+              (loop
+                ;; TODO: Only print as many lines as fit the height.
+                ;; But how can we know in advance?
+                with max-suggestion-count = 10
+                repeat max-suggestion-count
+                with cursor-index = (prompter:current-suggestion-position prompt-buffer)
+                for suggestion-index from (max 0 (- cursor-index (/ max-suggestion-count 2)))
+                for suggestion in (nthcdr suggestion-index (prompter:suggestions source))
+                collect
+                (let ((suggestion-index suggestion-index)
+                      (cursor-index cursor-index))
+                  (:tr :id (when (equal (list suggestion source)
+                                        (multiple-value-list (prompter:%current-suggestion prompt-buffer)))
+                             "selection")
+                       :class (when (prompter:marked-p source (prompter:value suggestion))
+                                "marked")
+                       :onmousedown (when (mouse-support-p prompt-buffer)
+                                      (ps:ps
+                                       (lambda (event)
+                                         (nyxt/ps:lisp-eval
+                                          (:title "choose-this-suggestion"
+                                                  :buffer prompt-buffer)
+                                          (prompter::set-current-suggestion
+                                           (current-prompt-buffer)
+                                           (- suggestion-index cursor-index)))
+                                         (cond
+                                           ;; Ctrl-click to mark a single suggestion.
+                                           ;; TODO: Shift-click to mark a region.
+                                           ((or (ps:@ event meta-key)
+                                                (ps:@ event ctrl-key))
+                                            (nyxt/ps:lisp-eval
+                                             (:title "mark-this-suggestion"
+                                                     :buffer prompt-buffer)
+                                             (funcall (read-from-string "nyxt/prompt-buffer-mode:toggle-mark")
+                                                      prompt-buffer)))
+                                           (t (nyxt/ps:lisp-eval
+                                               (:title "return-this-suggestion"
+                                                       :buffer prompt-buffer)
+                                               (prompter:run-action-on-return
+                                                (nyxt::current-prompt-buffer))))))))
+                       (loop for (nil attribute attribute-display)
+                               in (prompter:active-attributes suggestion :source source)
+                             collect (:td :title attribute
+                                          (if attribute-display
+                                              (:raw attribute-display)
+                                              (spinneret::escape-string attribute)))))))))))
+
 (export 'prompt-render-suggestions)
 (defmethod prompt-render-suggestions ((prompt-buffer prompt-buffer))
   "Refresh the rendering of the suggestion list.
@@ -300,7 +361,6 @@ This does not redraw the whole prompt buffer, unlike `prompt-render'."
   (let* ((sources (prompter:sources prompt-buffer))
          (current-source-index (position (current-source prompt-buffer) sources))
          (last-source-index (1- (length sources))))
-    ;; TODO: Factor out attribute printing.
     (flet ((source->html (source)
              (spinneret:with-html-string
                (:div :class "source"
@@ -319,62 +379,7 @@ This does not redraw the whole prompt buffer, unlike `prompt-render'."
                            (if (prompter:ready-p source)
                                ""
                                "(In progress...)"))
-                     (when (prompter:suggestions source)
-                       (:table :class "source-content"
-                               (:colgroup
-                                (dolist (width (nyxt::attribute-widths source))
-                                  (:col :style (format nil "width: ~d%" width))))
-                               (:tr :style (if (or (eq (prompter:hide-attribute-header-p source) :always)
-                                                   (and (eq (prompter:hide-attribute-header-p source) :single)
-                                                        (sera:single (prompter:active-attributes-keys source))))
-                                               "display:none;"
-                                               "display:revert;")
-                                    (loop for attribute-key in (prompter:active-attributes-keys source)
-                                          collect (:th (spinneret::escape-string attribute-key))))
-                               (loop ;; TODO: Only print as many lines as fit the height.  But how can we know in advance?
-                                     ;; Maybe first make the table, then add the element one by one _if_ there are into view.
-                                     with max-suggestion-count = 10
-                                     repeat max-suggestion-count
-                                     with cursor-index = (prompter:current-suggestion-position prompt-buffer)
-                                     for suggestion-index from (max 0 (- cursor-index (/ max-suggestion-count 2)))
-                                     for suggestion in (nthcdr suggestion-index (prompter:suggestions source))
-                                     collect
-                                     (let ((suggestion-index suggestion-index)
-                                           (cursor-index cursor-index))
-                                       (:tr :id (when (equal (list suggestion source)
-                                                             (multiple-value-list (prompter:%current-suggestion prompt-buffer)))
-                                                  "selection")
-                                            :class (when (prompter:marked-p source (prompter:value suggestion))
-                                                     "marked")
-                                            :onmousedown (when (mouse-support-p prompt-buffer)
-                                                           (ps:ps
-                                                             (lambda (event)
-                                                               (nyxt/ps:lisp-eval
-                                                                (:title "choose-this-suggestion"
-                                                                 :buffer prompt-buffer)
-                                                                (prompter::set-current-suggestion (current-prompt-buffer)
-                                                                  (- suggestion-index cursor-index)))
-                                                               (cond
-                                                                 ;; Ctrl-click to mark a single suggestion.
-                                                                 ;; TODO: Shift-click to mark a region.
-                                                                 ((or (ps:@ event meta-key)
-                                                                      (ps:@ event ctrl-key))
-                                                                  (nyxt/ps:lisp-eval
-                                                                   (:title "mark-this-suggestion"
-                                                                    :buffer prompt-buffer)
-                                                                   (funcall (read-from-string "nyxt/prompt-buffer-mode:toggle-mark")
-                                                                            prompt-buffer)))
-                                                                 (t (nyxt/ps:lisp-eval
-                                                                     (:title "return-this-suggestion"
-                                                                      :buffer prompt-buffer)
-                                                                     (prompter:run-action-on-return
-                                                                      (nyxt::current-prompt-buffer))))))))
-                                            (loop for (nil attribute attribute-display)
-                                                    in (prompter:active-attributes suggestion :source source)
-                                                  collect (:td :title attribute
-                                                               (if attribute-display
-                                                                   (:raw attribute-display)
-                                                                   (spinneret::escape-string attribute)))))))))))))
+                     (:raw (render-attributes source prompt-buffer))))))
       (ps-eval :buffer prompt-buffer
         (setf (ps:@ (nyxt/ps:qs document "#suggestions") |innerHTML|)
               (ps:lisp
