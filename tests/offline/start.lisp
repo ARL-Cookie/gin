@@ -15,12 +15,23 @@
 
 (setf nyxt::*renderer* (make-instance 'dummy-renderer))
 
-;; When attempting to read the slot's value (slot-value), the slot
-;; NYXT::READY-P is missing from the object NIL.
-;;    [Condition of type SB-PCL::MISSING-SLOT]
-
-;; If there's no browser, then gracefully do nothing.
 (define-test null-quit ()
-  (nyxt:quit))
+  (assert-true (nyxt:quit)))
 
-(define-test stateless-arguments ())
+;; Question: should the socket be created when there's no browser object?
+
+(define-test stateless-headless-argument ()
+  (nyxt:start :headless t :failsafe t)
+  ;; TODO find a way to avoid these calls to sleep.
+  (sleep 4)
+  (ffi-within-renderer-thread
+     nyxt:*browser*
+     (lambda () (assert-true nyxt::*headless-p*)))
+  (nyxt:quit)
+
+  (nyxt:start :failsafe t)
+  (sleep 4)
+  (ffi-within-renderer-thread
+     nyxt:*browser*
+     (lambda () (assert-false nyxt::*headless-p*)))
+  (nyxt:quit))
