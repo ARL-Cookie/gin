@@ -54,6 +54,12 @@ some point.")
       :type boolean
       :documentation "Whether to allow mouse events to set and return the
 current suggestion in the prompt buffer.")
+     (auto-attribute-width-p
+      nil
+      :type boolean
+      :documentation "Whether to adjust the widths of columns to the content in it.
+Columns with more content get more space, at the expense of smaller ones.
+Off by default to not cause confusion with the (possibly) quickly changing widths.")
      (style
       (theme:themed-css (theme *browser*)
         `(*
@@ -340,9 +346,10 @@ an integer."))
   (spinneret:with-html-string
     (when (prompter:suggestions source)
       (:table :class "source-content"
-              (:colgroup
-               (dolist (width (attribute-widths source))
-                 (:col :style (format nil "width: ~,2f%" (* 100 width)))))
+              (when (auto-attribute-width-p prompt-buffer)
+                (:colgroup
+                 (dolist (width (attribute-widths source))
+                   (:col :style (format nil "width: ~,2f%" (* 100 width))))))
               (:tr :style (if (or (eq (prompter:hide-attribute-header-p source) :always)
                                   (and (eq (prompter:hide-attribute-header-p source) :single)
                                        (sera:single (prompter:active-attributes-keys source))))

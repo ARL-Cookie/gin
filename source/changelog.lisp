@@ -577,8 +577,9 @@ auto-mode-rules.lisp)."))
         " allows to revisit the \"hub\" URLs you often visit, instead of adding them to history anew.")
    (:li "nyxt:// pages can be linked from the outside Internet due to scheme security
 settings changes.")
-   (:li "Prompt buffer attribute columns adjust to their content, allowing for
-a better overview of lengthy attributes."))
+   (:li "With " (:nxref :slot 'auto-attribute-width-p :class-name 'prompt-buffer)
+        " on, prompt buffer attribute columns adjust to their content, allowing
+for a better overview of lengthy attributes."))
 
   (:h3 "Bindings")
   (:ul
