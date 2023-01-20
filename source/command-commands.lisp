@@ -18,11 +18,7 @@
     `(("Name" ,(string-downcase (closer-mop:generic-function-name command)))
       ("Bindings" ,(format nil "~{~a~^, ~}" bindings))
       ("Docstring" ,(or (first (sera::lines (documentation command 'function)))
-                        ""))
-      ("Mode" ,(let ((package-name (str:downcase (uiop:symbol-package-name (closer-mop:generic-function-name command)))))
-                 (if (sera:in package-name "nyxt" "nyxt-user")
-                     ""
-                     (str:replace-first "nyxt/" "" package-name)))))))
+                        "") nil 4))))
 
 (define-class command-source (prompter:source)
   ((prompter:name "Commands")
@@ -115,7 +111,7 @@ Includes all commands and modes, and adds arbitrary Lisp functions on top of tha
     `(("Expression" ,(format nil "~s" extended-command))
       ("Arguments" ,(remove #\newline (format nil "~{~a~^ ~}" (arglist function))))
       ("Documentation" ,(or (first (sera::lines (documentation function 'function)))
-                            "")))))
+                            "") nil 4))))
 
 (defmethod prompter:object-attributes ((extended-command symbol) (source extended-command-source))
   (declare (ignore source))
@@ -124,10 +120,10 @@ Includes all commands and modes, and adds arbitrary Lisp functions on top of tha
         (let ((function (symbol-function extended-command)))
           `(("Expression" ,(format nil "~s" extended-command))
             ("Arguments" ,(remove #\newline (format nil "~{~a~^ ~}" (arglist function))))
-            ("Documentation" ,(or (first (sera::lines (documentation function 'function))) ""))))
+            ("Documentation" ,(or (first (sera::lines (documentation function 'function))) "") nil 4)))
         `(("Expression" ,(prini-to-string extended-command))
           ("Arguments" "")
-          ("Documentation" ,(or (documentation extended-command 'variable) ""))))))
+          ("Documentation" ,(or (documentation extended-command 'variable) "") nil 4)))))
 
 (define-command execute-command ()
   "Execute a command by name.
